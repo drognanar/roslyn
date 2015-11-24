@@ -180,6 +180,7 @@
     <Compile Include="Binding\SpeculativeMemberSemanticModel.vb" />
     <Compile Include="Binding\SpeculativeStatementBinder.vb" />
     <Compile Include="Binding\StatementListBinder.vb" />
+    <Compile Include="Binding\SubmissionBinder.vb" />
     <Compile Include="Binding\SubOrFunctionBodyBinder.vb" />
     <Compile Include="Binding\SymbolsInProgress.vb" />
     <Compile Include="Binding\SyntheticBoundTrees\AnonymousTypeSyntheticMethods.vb" />

@@ -117,6 +117,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                         parentBinder = BinderBuilder.CreateBinderForType(moduleSymbol, syntaxTree, symbol)
 
                         If scriptInitializerOpt IsNot Nothing Then
+                            parentBinder = New SubmissionBinder(moduleSymbol, syntaxTree, parentBinder)
                             parentBinder = New TopLevelCodeBinder(scriptInitializerOpt, parentBinder)
                         End If
                     Else

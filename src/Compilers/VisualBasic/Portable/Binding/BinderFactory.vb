@@ -159,11 +159,13 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                     Dim rootNamespaceBinder = GetBinderForNodeAndUsage(node, NodeUsage.CompilationUnit)
                     Debug.Assert(TypeOf rootNamespaceBinder Is NamespaceBinder)
 
+                    Dim compilation = _sourceModule.ContainingSourceAssembly.DeclaringCompilation
+                    Dim submissionBinder = New NamedTypeBinder(rootNamespaceBinder, _sourceModule.ContainingSourceAssembly.DeclaringCompilation.SourceScriptClass)
                     ' TODO (tomat): this is just a simple temporary solution, we'll need to plug-in submissions, interactive imports and host object members:
-                    Return New NamedTypeBinder(rootNamespaceBinder, _sourceModule.ContainingSourceAssembly.DeclaringCompilation.SourceScriptClass)
+                    Return New SubmissionBinder(_sourceModule, _tree, submissionBinder)
 
                 Case NodeUsage.TopLevelExecutableStatement
-                    Debug.Assert(TypeOf containingBinder Is NamedTypeBinder AndAlso containingBinder.ContainingType.IsScriptClass)
+                    Debug.Assert(TypeOf containingBinder Is SubmissionBinder AndAlso containingBinder.ContainingType.IsScriptClass)
                     Return New TopLevelCodeBinder(containingBinder.ContainingType.InstanceConstructors.Single(), containingBinder)
 
                 Case NodeUsage.ImportsStatement
