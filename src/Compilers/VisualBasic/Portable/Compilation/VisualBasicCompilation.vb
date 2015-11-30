@@ -1796,8 +1796,27 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         End Function
 
         Friend Function GetTypeByReflectionType(type As Type, diagnostics As DiagnosticBag) As TypeSymbol
-            ' TODO: See CSharpCompilation.GetTypeByReflectionType
-            Return GetSpecialType(SpecialType.System_Object)
+            Dim result = Assembly.GetTypeByReflectionType(type, includeReferences:=True)
+            If result Is Nothing Then
+                ' TODO(drognanar): See CSharpCompilation.GetTypeByReflectionType
+                'Dim errorType = New ExtendedErrorTypeSymbol(Me, type.Name, 0, CreateReflectionTypeNotFoundError(type))
+                'diagnostics.Add(errorType.ErrorInfo, NoLocation.Singleton)
+                'result = errorType
+            End If
+
+            Return result
+        End Function
+
+        Private Shared Function CreateReflectionTypeNotFoundError(Type As Type) As NamedTypeSymbol
+            ' The type Or namespace name '{0}' could not be found in the global namespace (are you missing an assembly reference?)
+            ' TODO(drognanar): implement
+            Return Nothing
+            'New CSDiagnosticInfo(
+            '    ErrorCode.ERR_GlobalSingleTypeNameNotFound,
+            '    New Object[] { type.AssemblyQualifiedName },
+            '    ImmutableArray<Symbol>.Empty,
+            '    ImmutableArray<Location>.Empty
+            ')
         End Function
 
         ''' <summary>

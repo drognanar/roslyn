@@ -473,6 +473,11 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
         ''' as the number of type parameters that this type has.</param>
         Public MustOverride Function Construct(typeArguments As ImmutableArray(Of TypeSymbol)) As NamedTypeSymbol
 
+        Friend Function Construct(arguments As ImmutableArray(Of TypeWithModifiers), unbound As Boolean) As NamedTypeSymbol
+            ' TODO(drognanar): implement. Return New ConstructedNamedTypeSymbol(Me, TypeArguments, unbound)
+            Return Nothing
+        End Function
+
         ''' <summary> Checks for validity of Construct(...) on this type with these type arguments. </summary>
         Protected Sub CheckCanConstructAndTypeArguments(typeArguments As ImmutableArray(Of TypeSymbol))
             'This helper is used by Public APIs to perform validation. This exception is part of the public

@@ -198,12 +198,13 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             Dim boundStatements = ArrayBuilder(Of BoundStatement).GetInstance(boundInitializers.Length)
             Dim submissionResultType = method.ResultType
             Dim submissionResult As BoundExpression = Nothing
+            Dim statement As BoundStatement = Nothing
 
             For Each initializer In boundInitializers
                 If submissionResultType IsNot Nothing AndAlso
                     initializer Is boundInitializers.Last AndAlso
                     initializer.Kind = BoundKind.GlobalStatementInitializer Then
-                    Dim statement = DirectCast(initializer, BoundGlobalStatementInitializer).Statement
+                    statement = DirectCast(initializer, BoundGlobalStatementInitializer).Statement
                     If statement.Kind = BoundKind.ExpressionStatement Then
                         Dim expr = DirectCast(statement, BoundExpressionStatement).Expression
                         Debug.Assert(expr.Type IsNot Nothing)
@@ -216,15 +217,11 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 boundStatements.Add(RewriteInitializerAsStatement(initializer))
             Next
 
-            If submissionResultType IsNot Nothing Then
-                If submissionResult Is Nothing Then
-                    ' Return Nothing if submission does not have a trailing expression.
-                    submissionResult = New BoundLiteral(method.Syntax, ConstantValue.Nothing, submissionResultType)
-                End If
-                Debug.Assert(submissionResult.Type.SpecialType <> SpecialType.System_Void)
-
+            ' If submission has a trailing expression return it.
+            If submissionResultType IsNot Nothing AndAlso submissionResult IsNot Nothing Then
+                Debug.Assert(submissionResultType.SpecialType <> SpecialType.System_Void)
                 ' The expression is converted to the submission result type when the initializer is bound.
-                boundStatements.Add(New BoundReturnStatement(submissionResult.Syntax, submissionResult, method.FunctionLocal, method.ExitLabel))
+                boundStatements.Add(New BoundReturnStatement(statement.Syntax, submissionResult, method.FunctionLocal, method.ExitLabel))
             End If
 
             Return boundStatements.ToImmutableAndFree()

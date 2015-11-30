@@ -344,6 +344,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
         End Function
 
         <Extension()>
+        Friend Function ConstructIfGeneric(type As NamedTypeSymbol, typeArguments As ImmutableArray(Of TypeWithModifiers)) As NamedTypeSymbol
+            Debug.Assert(type.TypeParameters.IsEmpty = (typeArguments.Length = 0))
+            Return If(type.TypeParameters.IsEmpty, type, type.Construct(typeArguments, unbound:=False))
+        End Function
+
+        <Extension()>
         Friend Function OfMinimalArity(symbols As IEnumerable(Of NamespaceOrTypeSymbol)) As NamespaceOrTypeSymbol
             Dim minAritySymbol As NamespaceOrTypeSymbol = Nothing
             Dim minArity As Integer = Int32.MaxValue

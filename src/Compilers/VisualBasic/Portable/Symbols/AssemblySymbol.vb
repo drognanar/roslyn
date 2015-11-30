@@ -3,6 +3,7 @@
 Imports System.Collections.Concurrent
 Imports System.Collections.Generic
 Imports System.Collections.Immutable
+Imports System.Reflection
 Imports System.Threading
 Imports Microsoft.CodeAnalysis.Text
 Imports Microsoft.CodeAnalysis.VisualBasic.Symbols
@@ -300,6 +301,68 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
         ''' <returns></returns>
         ''' <remarks></remarks>
         Friend MustOverride Function GetDeclaredSpecialType(type As SpecialType) As NamedTypeSymbol
+
+        Friend Function GetTypeByReflectionType(type As Type, includeReferences As Boolean) As TypeSymbol
+            Dim typeInfo = type.GetTypeInfo()
+
+            Debug.Assert(Not typeInfo.IsByRef)
+
+            ' Not supported (we don't accept open types as submission results nor host types):
+            Debug.Assert(Not typeInfo.ContainsGenericParameters)
+
+            If typeInfo.IsArray Then
+                Dim symbol = GetTypeByReflectionType(typeInfo.GetElementType(), includeReferences)
+                If symbol Is Nothing Then
+                    Return Nothing
+                End If
+
+                Dim rank = typeInfo.GetArrayRank()
+                Return ArrayTypeSymbol.CreateVBArray(symbol, ImmutableArray(Of CustomModifier).Empty, rank, Me)
+            ElseIf typeInfo.IsPointer Then
+                Dim symbol = GetTypeByReflectionType(typeInfo.GetElementType(), includeReferences)
+                If symbol Is Nothing Then
+                    Return Nothing
+                End If
+
+                Return New PointerTypeSymbol(symbol, ImmutableArray(Of CustomModifier).Empty)
+            ElseIf typeInfo.DeclaringType IsNot Nothing Then
+                ' TODO: implement declaring type
+            Else
+                Dim ns = If(typeInfo.Namespace, String.Empty)
+
+                Dim mdName = MetadataTypeName.FromNamespaceAndTypeName(ns, typeInfo.Name, forcedArity:=typeInfo.GenericTypeArguments.Length)
+                Dim symbol = GetTopLevelTypeByMetadataName(mdName, includeReferences, isWellKnownType:=False)
+
+                ' TODO: Apply generic arguments.
+                Dim typeArgumentIndex = 0
+                Dim genericArguments = typeInfo.GenericTypeArguments
+                symbol = ApplyGenericArguments(symbol, genericArguments, typeArgumentIndex, includeReferences)
+                Debug.Assert(typeArgumentIndex = genericArguments.Length)
+                Return symbol
+            End If
+        End Function
+
+        Private Function ApplyGenericArguments(symbol As NamedTypeSymbol, typeArguments As Type(), ByRef currentTypeArgument As Integer, includeReferences As Boolean) As NamedTypeSymbol
+            Dim remainingTypeArguments = typeArguments.Length - currentTypeArgument
+
+            Debug.Assert(remainingTypeArguments >= symbol.Arity)
+
+            If remainingTypeArguments = 0 Then
+                Return symbol
+            End If
+
+            Dim typeArgumentSymbols(symbol.TypeArgumentsNoUseSiteDiagnostics.Length) As TypeWithModifiers
+            For i = 0 To typeArgumentSymbols.Length
+                currentTypeArgument += 1
+                Dim argSymbol = GetTypeByReflectionType(typeArguments(currentTypeArgument), includeReferences)
+                If argSymbol Is Nothing Then
+                    Return Nothing
+                End If
+                typeArgumentSymbols(i) = New TypeWithModifiers(argSymbol)
+            Next
+
+            Return symbol.ConstructIfGeneric(typeArgumentSymbols.AsImmutableOrNull())
+        End Function
 
         ''' <summary>
         ''' Register declaration of predefined CorLib type in this Assembly.
