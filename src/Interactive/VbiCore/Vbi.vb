@@ -15,7 +15,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
                 Dim compiler = New VisualBasicInteractiveCompiler(
                     responseFile,
-                    AppContext.BaseDirectory,
+                    Directory.GetCurrentDirectory(),
                     CorLightup.Desktop.TryGetRuntimeDirectory(),
                     args,
                     New NotImplementedAnalyzerLoader())
