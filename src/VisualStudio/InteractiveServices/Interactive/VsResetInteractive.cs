@@ -7,49 +7,50 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using core::Roslyn.Utilities;
 using EnvDTE;
-using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Editor.Host;
-using Microsoft.CodeAnalysis.Editor.Interactive;
-using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.ComponentModelHost;
-using Microsoft.VisualStudio.LanguageServices;
 using Microsoft.VisualStudio.Shell.Interop;
-using Microsoft.VisualStudio.InteractiveWindow;
-using Microsoft.VisualStudio.InteractiveWindow.Shell;
 using VSLangProj;
 using Project = EnvDTE.Project;
-using System.Collections.Immutable;
 
 namespace Microsoft.VisualStudio.LanguageServices.Interactive
 {
-    internal sealed class ResetInteractive
+    internal sealed class VsResetInteractive : ResetInteractive
     {
         private readonly DTE _dte;
         private readonly IComponentModel _componentModel;
         private readonly IVsMonitorSelection _monitorSelection;
         private readonly IVsSolutionBuildManager _buildManager;
-        private readonly Func<string, string> _createReference;
-        private readonly Func<string, string> _createImport;
 
-        internal ResetInteractive(DTE dte, IComponentModel componentModel, IVsMonitorSelection monitorSelection, IVsSolutionBuildManager buildManager, Func<string, string> createReference, Func<string, string> createImport)
+        internal VsResetInteractive(DTE dte, IComponentModel componentModel, IVsMonitorSelection monitorSelection, IVsSolutionBuildManager buildManager, Func<string, string> createReference, Func<string, string> createImport)
+            : base(createReference, createImport)
         {
             _dte = dte;
             _componentModel = componentModel;
             _monitorSelection = monitorSelection;
             _buildManager = buildManager;
-            _createReference = createReference;
-            _createImport = createImport;
         }
 
-        internal void Execute(IVsInteractiveWindow vsInteractiveWindow, string title)
+        /// <summary>
+        /// Gets the properties of the currently selected projects necessary for reset.
+        /// </summary>
+        protected override bool GetProjectProperties(
+            out List<string> references,
+            out List<string> referenceSearchPaths,
+            out List<string> sourceSearchPaths,
+            out List<string> namespacesToImport,
+            out string projectDirectory)
         {
             var hierarchyPointer = default(IntPtr);
             var selectionContainerPointer = default(IntPtr);
+            references = null;
+            referenceSearchPaths = null;
+            sourceSearchPaths = null;
+            namespacesToImport = null;
+            projectDirectory = null;
 
             try
             {
@@ -60,34 +61,8 @@ namespace Microsoft.VisualStudio.LanguageServices.Interactive
 
                 if (hierarchyPointer != IntPtr.Zero)
                 {
-                    List<string> references, referenceSearchPaths, sourceSearchPaths, namespacesToImport;
-                    string projectDirectory;
                     GetProjectProperties(hierarchyPointer, out references, out referenceSearchPaths, out sourceSearchPaths, out namespacesToImport, out projectDirectory);
-
-                    // Now, we're going to do a bunch of async operations.  So create a wait
-                    // indicator so the user knows something is happening, and also so they cancel.
-                    var waitIndicator = _componentModel.GetService<IWaitIndicator>();
-                    var waitContext = waitIndicator.StartWait(title, ServicesVSResources.BuildingProject, allowCancel: true);
-
-                    var resetInteractiveTask = ResetInteractiveAsync(
-                        vsInteractiveWindow,
-                        references.ToImmutableArray(),
-                        referenceSearchPaths.ToImmutableArray(),
-                        sourceSearchPaths.ToImmutableArray(),
-                        namespacesToImport.ToImmutableArray(),
-                        projectDirectory,
-                        waitContext);
-
-                    // Once we're done resetting, dismiss the wait indicator and focus the REPL window.
-                    resetInteractiveTask.SafeContinueWith(
-                        _ =>
-                        {
-                            waitContext.Dispose();
-
-                            // We have to set focus to the Interactive Window *after* the wait indicator is dismissed.
-                            vsInteractiveWindow.Show(focus: true);
-                        },
-                        TaskScheduler.FromCurrentSynchronizationContext());
+                    return true;
                 }
             }
             finally
@@ -95,40 +70,8 @@ namespace Microsoft.VisualStudio.LanguageServices.Interactive
                 SafeRelease(hierarchyPointer);
                 SafeRelease(selectionContainerPointer);
             }
-        }
 
-        private async Task ResetInteractiveAsync(
-            IVsInteractiveWindow vsInteractiveWindow,
-            ImmutableArray<string> referencePaths,
-            ImmutableArray<string> referenceSearchPaths,
-            ImmutableArray<string> sourceSearchPaths,
-            ImmutableArray<string> namespacesToImport,
-            string projectDirectory,
-            IWaitContext waitContext)
-        {
-            // First, open the repl window.
-            var engine = (InteractiveEvaluator)vsInteractiveWindow.InteractiveWindow.Evaluator;
-
-            // If the user hits the cancel button on the wait indicator, then we want to stop the
-            // build.
-            waitContext.CancellationToken.Register(() =>
-                _dte.ExecuteCommand("Build.Cancel"), useSynchronizationContext: true);
-
-            // First, start a build
-            await BuildProject().ConfigureAwait(true);
-
-            // Then reset the REPL
-            waitContext.Message = ServicesVSResources.ResettingInteractive;
-            await vsInteractiveWindow.InteractiveWindow.Operations.ResetAsync(initialize: false).ConfigureAwait(true);
-
-            // Now send the reference paths we've collected to the repl.
-            await engine.SetPathsAsync(referenceSearchPaths, sourceSearchPaths, projectDirectory).ConfigureAwait(true);
-
-            await vsInteractiveWindow.InteractiveWindow.SubmitAsync(new[]
-            {
-                referencePaths.Select(_createReference).Join("\r\n"),
-                namespacesToImport.Select(_createImport).Join("\r\n")
-            }).ConfigureAwait(true);
+            return false;
         }
 
         private static void GetProjectProperties(
@@ -262,7 +205,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Interactive
 
             if (foundNonEquivalent)
             {
-                // We found some equivalent assemblies but also some non-equivalent. 
+                // We found some equivalent assemblies but also some non-equivalent.
                 // So simple name doesn't identify the reference uniquely.
                 return fullName;
             }
@@ -281,7 +224,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Interactive
             }
         }
 
-        private Task<bool> BuildProject()
+        protected override Task<bool> BuildProject()
         {
             var taskSource = new TaskCompletionSource<bool>();
 
@@ -292,6 +235,16 @@ namespace Microsoft.VisualStudio.LanguageServices.Interactive
             _dte.ExecuteCommand("Build.BuildSelection");
 
             return taskSource.Task;
+        }
+
+        protected override void CancelBuildProject()
+        {
+            _dte.ExecuteCommand("Build.Cancel");
+        }
+
+        protected override IWaitIndicator GetWaitIndicator()
+        {
+            return _componentModel.GetService<IWaitIndicator>();
         }
     }
 }
