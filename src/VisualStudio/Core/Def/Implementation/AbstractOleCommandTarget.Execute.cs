@@ -9,10 +9,8 @@ using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Utilities;
 
-#if INTERACTIVE
-using InteractiveCommandIds = Microsoft.VisualStudio.LanguageServices.InteractiveWindow.CommandIds;
-using InteractiveGuids = Microsoft.VisualStudio.LanguageServices.InteractiveWindow.Guids;
-#endif
+using InteractiveCommandIds = Microsoft.VisualStudio.InteractiveWindow.Shell.CommandIds;
+using InteractiveGuids = Microsoft.VisualStudio.InteractiveWindow.Shell.Guids;
 
 namespace Microsoft.VisualStudio.LanguageServices.Implementation
 {
@@ -52,12 +50,10 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation
                 {
                     return ExecuteVisualStudio97(ref pguidCmdGroup, commandId, executeInformation, pvaIn, pvaOut, subjectBuffer, contentType);
                 }
-#if INTERACTIVE
-            else if (pguidCmdGroup == InteractiveGuids.InteractiveCommandSetId)
-            {
-                return ExecuteInteractiveCommands(ref pguidCmdGroup, commandId, executeInformation, pvaIn, pvaOut, subjectBuffer, contentType);
-            }
-#endif
+                else if (pguidCmdGroup == InteractiveGuids.InteractiveCommandSetId)
+                {
+                    return ExecuteInteractiveCommands(ref pguidCmdGroup, commandId, executeInformation, pvaIn, pvaOut, subjectBuffer, contentType);
+                }
                 else if (pguidCmdGroup == VSConstants.VsStd14)
                 {
                     return ExecuteVisualStudio2014(ref pguidCmdGroup, commandId, executeInformation, pvaIn, pvaOut, subjectBuffer, contentType);
@@ -577,7 +573,6 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation
                 lastHandler: executeNextCommandTarget);
         }
 
-#if INTERACTIVE
         private int ExecuteInteractiveCommands(ref Guid pguidCmdGroup, uint commandId, uint executeInformation, IntPtr pvaIn, IntPtr pvaOut, ITextBuffer subjectBuffer, IContentType contentType)
         {
             int result = VSConstants.S_OK;
@@ -603,7 +598,6 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation
 
             return result;
         }
-#endif
 
         private void ExecuteMoveSelectedLinesUp(ITextBuffer subjectBuffer, IContentType contentType, Action executeNextCommandTarget)
         {

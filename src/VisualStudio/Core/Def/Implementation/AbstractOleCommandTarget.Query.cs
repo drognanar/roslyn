@@ -12,10 +12,8 @@ using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using Roslyn.Utilities;
 
-#if INTERACTIVE
-using InteractiveCommandIds = Microsoft.VisualStudio.LanguageServices.InteractiveWindow.CommandIds;
-using InteractiveGuids = Microsoft.VisualStudio.LanguageServices.InteractiveWindow.Guids;
-#endif
+using InteractiveCommandIds = Microsoft.VisualStudio.InteractiveWindow.Shell.CommandIds;
+using InteractiveGuids = Microsoft.VisualStudio.InteractiveWindow.Shell.Guids;
 
 namespace Microsoft.VisualStudio.LanguageServices.Implementation
 {
@@ -42,12 +40,10 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation
             {
                 return QueryVisualStudio97Status(ref pguidCmdGroup, commandCount, prgCmds, commandText);
             }
-#if INTERACTIVE
             else if (pguidCmdGroup == InteractiveGuids.InteractiveCommandSetId)
             {
                 return QueryInteractiveCommandStatus(ref pguidCmdGroup, commandCount, prgCmds, commandText);
             }
-#endif
             else if (pguidCmdGroup == VSConstants.VsStd14)
             {
                 return QueryVisualStudio2014Status(ref pguidCmdGroup, commandCount, prgCmds, commandText);
@@ -231,7 +227,6 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation
             }
         }
 
-#if INTERACTIVE
         private int QueryInteractiveCommandStatus(ref Guid pguidCmdGroup, uint commandCount, OLECMD[] prgCmds, IntPtr commandText)
         {
             switch ((InteractiveCommandIds)prgCmds[0].cmdID)
@@ -246,7 +241,6 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation
                     return NextCommandTarget.QueryStatus(ref pguidCmdGroup, commandCount, prgCmds, commandText);
             }
         }
-#endif
 
         private int GetCommandState<T>(
             Func<ITextView, ITextBuffer, T> createArgs,
