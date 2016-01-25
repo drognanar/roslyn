@@ -8,11 +8,11 @@ using Microsoft.VisualStudio.Utilities;
 
 namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.Interactive.Commands
 {
-    internal class InteractiveCommandHandlerTestStub : InteractiveCommandHandler
+    internal class TestInteractiveCommandHandler : InteractiveCommandHandler
     {
         private IInteractiveWindow _interactiveWindow;
 
-        public InteractiveCommandHandlerTestStub(
+        public TestInteractiveCommandHandler(
             IInteractiveWindow interactiveWindow,
             IContentTypeRegistryService contentTypeRegistryService,
             IEditorOptionsFactoryService editorOptionsFactoryService,

@@ -73,11 +73,7 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.Interactive
             if (Window != null)
             {
                 // close interactive host process:
-                var engine = Window.Evaluator;
-                if (engine != null)
-                {
-                    engine.Dispose();
-                }
+                Window.Evaluator?.Dispose();
 
                 // dispose buffer:
                 Window.Dispose();

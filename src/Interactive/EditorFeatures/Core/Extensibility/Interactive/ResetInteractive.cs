@@ -1,7 +1,6 @@
 ﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Roslyn.Utilities;
@@ -13,6 +12,10 @@ using Microsoft.CodeAnalysis.Editor;
 
 namespace Microsoft.VisualStudio.LanguageServices.Interactive
 {
+    /// <summary>
+    /// ResetInteractive class that implements base functionality for reset interactive command.
+    /// Does not depend on VS classes to make it easier to stub out and test.
+    /// </summary>
     internal abstract class ResetInteractive
     {
         private readonly Func<string, string> _createReference;
@@ -29,7 +32,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Interactive
 
         internal Task Execute(IInteractiveWindow interactiveWindow, string title)
         {
-            List<string> references, referenceSearchPaths, sourceSearchPaths, namespacesToImport;
+            ImmutableArray<string> references, referenceSearchPaths, sourceSearchPaths, namespacesToImport;
             string projectDirectory;
 
             if (GetProjectProperties(out references, out referenceSearchPaths, out sourceSearchPaths, out namespacesToImport, out projectDirectory))
@@ -41,10 +44,10 @@ namespace Microsoft.VisualStudio.LanguageServices.Interactive
 
                 var resetInteractiveTask = ResetInteractiveAsync(
                     interactiveWindow,
-                    references.ToImmutableArray(),
-                    referenceSearchPaths.ToImmutableArray(),
-                    sourceSearchPaths.ToImmutableArray(),
-                    namespacesToImport.ToImmutableArray(),
+                    references,
+                    referenceSearchPaths,
+                    sourceSearchPaths,
+                    namespacesToImport,
                     projectDirectory,
                     waitContext);
 
@@ -71,7 +74,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Interactive
             IWaitContext waitContext)
         {
             // First, open the repl window.
-            IInteractiveEvaluator engine = interactiveWindow.Evaluator;
+            IInteractiveEvaluator evaluator = interactiveWindow.Evaluator;
 
             // If the user hits the cancel button on the wait indicator, then we want to stop the
             // build.
@@ -95,10 +98,10 @@ namespace Microsoft.VisualStudio.LanguageServices.Interactive
             // Now send the reference paths we've collected to the repl.
             // The SetPathsAsync method is not available through an Interface.
             // Execute the method only if the cast to a concrete InteractiveEvaluator succeeds.
-            InteractiveEvaluator interactiveEngine = engine as InteractiveEvaluator;
-            if (interactiveEngine != null)
+            InteractiveEvaluator interactiveEvaluator = evaluator as InteractiveEvaluator;
+            if (interactiveEvaluator != null)
             {
-                await interactiveEngine.SetPathsAsync(referenceSearchPaths, sourceSearchPaths, projectDirectory).ConfigureAwait(true);
+                await interactiveEvaluator.SetPathsAsync(referenceSearchPaths, sourceSearchPaths, projectDirectory).ConfigureAwait(true);
             }
 
             await interactiveWindow.SubmitAsync(new[]
@@ -112,10 +115,10 @@ namespace Microsoft.VisualStudio.LanguageServices.Interactive
         /// Gets the properties of the currently selected projects necessary for reset.
         /// </summary>
         protected abstract bool GetProjectProperties(
-            out List<string> references,
-            out List<string> referenceSearchPaths,
-            out List<string> sourceSearchPaths,
-            out List<string> namespacesToImport,
+            out ImmutableArray<string> references,
+            out ImmutableArray<string> referenceSearchPaths,
+            out ImmutableArray<string> sourceSearchPaths,
+            out ImmutableArray<string> namespacesToImport,
             out string projectDirectory);
 
         /// <summary>

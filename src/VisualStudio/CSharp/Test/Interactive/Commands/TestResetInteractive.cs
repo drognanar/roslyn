@@ -3,12 +3,12 @@
 using Microsoft.CodeAnalysis.Editor.Host;
 using Microsoft.VisualStudio.LanguageServices.Interactive;
 using System;
-using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Threading.Tasks;
 
 namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.Interactive.Commands
 {
-    internal class ResetInteractiveTestStub : ResetInteractive
+    internal class TestResetInteractive : ResetInteractive
     {
         private IWaitIndicator _waitIndicator;
 
@@ -18,17 +18,17 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.Interactive.Commands
 
         internal int CancelBuildProjectCount { get; private set; }
 
-        internal List<string> References { get; set; }
+        internal ImmutableArray<string> References { get; set; }
 
-        internal List<string> ReferenceSearchPaths { get; set; }
+        internal ImmutableArray<string> ReferenceSearchPaths { get; set; }
 
-        internal List<string> SourceSearchPaths { get; set; }
+        internal ImmutableArray<string> SourceSearchPaths { get; set; }
 
-        internal List<string> NamespacesToImport { get; set; }
+        internal ImmutableArray<string> NamespacesToImport { get; set; }
 
         internal string ProjectDirectory { get; set; }
 
-        public ResetInteractiveTestStub(IWaitIndicator waitIndicator, Func<string, string> createReference, Func<string, string> createImport, bool buildSucceeds)
+        public TestResetInteractive(IWaitIndicator waitIndicator, Func<string, string> createReference, Func<string, string> createImport, bool buildSucceeds)
             : base(createReference, createImport)
         {
             _waitIndicator = waitIndicator;
@@ -47,10 +47,10 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.Interactive.Commands
         }
 
         protected override bool GetProjectProperties(
-            out List<string> references,
-            out List<string> referenceSearchPaths,
-            out List<string> sourceSearchPaths,
-            out List<string> namespacesToImport,
+            out ImmutableArray<string> references,
+            out ImmutableArray<string> referenceSearchPaths,
+            out ImmutableArray<string> sourceSearchPaths,
+            out ImmutableArray<string> namespacesToImport,
             out string projectDirectory)
         {
             references = References;

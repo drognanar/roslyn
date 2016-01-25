@@ -9,19 +9,22 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.Interactive.Commands
 {
     internal class InteractiveCommandHandlerTests
     {
-        private string ExampleCode1 =
+        private const string ExampleCode1 =
 @"var x = 1;
 Task.Run(() => { return 1; });";
 
         [WpfFact]
         [Trait(Traits.Feature, Traits.Features.Interactive)]
-        public void TestExecuteInInteractive()
+        public void TestExecuteInInteractiveWithoutSelection()
         {
-            // Tests that the command is unavailable without a selection.
             AssertUnavailableExecuteInInteractive("$$");
             AssertUnavailableExecuteInInteractive($"{ExampleCode1}$$");
+        }
 
-            // Tests cases when code is selected and submission buffer is empty.
+        [WpfFact]
+        [Trait(Traits.Feature, Traits.Features.Interactive)]
+        public void TestExecuteInInteractiveWithEmptyBuffer()
+        {
             AssertExecuteInInteractive(@"{|Selection:var x = 1;$$|}", "var x = 1;");
             AssertExecuteInInteractive($@"{{|Selection:{ExampleCode1}$$|}}", ExampleCode1);
             AssertExecuteInInteractive(
@@ -30,16 +33,25 @@ Console.WriteLine(o);
 {{|Selection:{ExampleCode1}$$|}}
 
 Console.WriteLine(x);", ExampleCode1);
+        }
 
-            // Tests that submission works with box selection.
+        [WpfFact]
+        [Trait(Traits.Feature, Traits.Features.Interactive)]
+        public void TestExecuteInInteractiveWithBoxSelection()
+        {
             AssertExecuteInInteractive(
 $@"some text {{|Selection:$$int x;|}} also here
 text some {{|Selection:int y;|}} here also",
 @"int x;
 int y;");
+        }
 
-            // Tests cases when interactive buffer was not empty before calling the command.
+        [WpfFact]
+        [Trait(Traits.Feature, Traits.Features.Interactive)]
+        public void TestExecuteInInteractiveWithNonEmptyBuffer()
+        {
             // Execute in interactive clears the existing current buffer before execution.
+            // Therefore `var x = 1;` will not be executed.
             AssertExecuteInInteractive(
                 @"{|Selection:var y = 2;$$|}",
                 "var y = 2;",
@@ -48,18 +60,27 @@ int y;");
 
         [WpfFact]
         [Trait(Traits.Feature, Traits.Features.Interactive)]
-        public void TestCopyToInteractive()
+        public void TestCopyToInteractiveWithoutSelection()
         {
-            // Tests that the command is unavailable without a selection.
             AssertUnavailableCopyToInteractive("$$");
             AssertUnavailableCopyToInteractive($"{ExampleCode1}$$");
             AssertUnavailableCopyToInteractive($"{ExampleCode1}$$", submissionBuffer: "var x = 1;");
             AssertUnavailableCopyToInteractive($"{ExampleCode1}$$", submissionBuffer: "x = 2;");
+        }
 
-            // Tests a regular copy command.
+        [WpfFact]
+        [Trait(Traits.Feature, Traits.Features.Interactive)]
+        public void TestCopyToInteractive()
+        {
             AssertCopyToInteractive($"{{|Selection:{ExampleCode1}$$|}}", ExampleCode1);
+        }
 
-            // Tests cases when interactive buffer was not empty before calling the command.
+        [WpfFact]
+        [Trait(Traits.Feature, Traits.Features.Interactive)]
+        public void TestCopyToInteractiveWithNonEmptyBuffer()
+        {
+          // Copy to interactive does not clear the existing buffer.
+          // Therefore `var x = 1;` will still be present in the final buffer.
             AssertCopyToInteractive(
                 $"{{|Selection:{ExampleCode1}$$|}}",
                 $"var x = 1;\r\n{ExampleCode1}",

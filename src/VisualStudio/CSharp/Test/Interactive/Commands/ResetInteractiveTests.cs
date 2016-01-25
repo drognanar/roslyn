@@ -6,6 +6,8 @@ using Microsoft.CodeAnalysis.Editor.UnitTests.Workspaces;
 using Microsoft.CodeAnalysis.Editor.Host;
 using System.Collections.Generic;
 using System;
+using System.Collections.Immutable;
+using System.Linq;
 
 namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.Interactive.Commands
 {
@@ -13,8 +15,12 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.Interactive.Commands
     {
         private string WorkspaceXmlStr =>
 @"<Workspace>
-    <Project Language=""C#"" CommonReferences=""true"">
-        <Document FilePath=""CSharpDocument""></Document>
+    <Project Language=""Visual Basic"" AssemblyName=""ResetInteractiveVisualBasicSubproject"" CommonReferences=""true"">
+        <Document FilePath=""VisualBasicDocument""></Document>
+    </Project>
+    <Project Language=""C#"" AssemblyName=""ResetInteractiveTestsAssembly"" CommonReferences=""true"">
+        <ProjectReference>ResetInteractiveVisualBasicSubproject</ProjectReference>
+        <Document FilePath=""ResetInteractiveTestsDocument""></Document>
     </Project>
 </Workspace>";
 
@@ -24,17 +30,28 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.Interactive.Commands
         {
             using (var workspace = await TestWorkspace.CreateAsync(WorkspaceXmlStr))
             {
+                var project = workspace.CurrentSolution.Projects.FirstOrDefault(p => p.AssemblyName == "ResetInteractiveTestsAssembly");
+                var document = project.Documents.FirstOrDefault(d => d.FilePath == "ResetInteractiveTestsDocument");
+                var replReferenceCommands = GetProjectReferences(workspace, project).Select(r => CreateReplReferenceCommand(r));
+
+                Assert.True(replReferenceCommands.Any(rc => rc.EndsWith(@"ResetInteractiveTestsAssembly.dll""")));
+                Assert.True(replReferenceCommands.Any(rc => rc.EndsWith(@"ResetInteractiveVisualBasicSubproject.dll""")));
+
                 var expectedSubmissions = new List<string> {
-                    "r:r1\r\nr:r2\r\n",
-                    "i:ns1\r\ni:ns2\r\n"};
-                AssertResetInteractive(workspace, buildSucceeds: true, expectedSubmissions: expectedSubmissions);
+                    string.Join("\r\n", replReferenceCommands) + "\r\n",
+                    string.Join("\r\n", @"using ""ns1"";", @"using ""ns2"";") + "\r\n"};
+                AssertResetInteractive(workspace, project, buildSucceeds: true, expectedSubmissions: expectedSubmissions);
 
                 // Test that no submissions are executed if the build fails.
-                AssertResetInteractive(workspace, buildSucceeds: false, expectedSubmissions: new List<string>());
+                AssertResetInteractive(workspace, project, buildSucceeds: false, expectedSubmissions: new List<string>());
             }
         }
 
-        private async void AssertResetInteractive(TestWorkspace workspace, bool buildSucceeds, List<string> expectedSubmissions)
+        private async void AssertResetInteractive(
+            TestWorkspace workspace,
+            Project project,
+            bool buildSucceeds,
+            List<string> expectedSubmissions)
         {
             InteractiveWindowTestHost testHost = new InteractiveWindowTestHost();
             List<string> executedSubmissionCalls = new List<string>();
@@ -44,16 +61,16 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.Interactive.Commands
 
             IWaitIndicator waitIndicator = workspace.GetService<IWaitIndicator>();
 
-            ResetInteractiveTestStub resetInteractive = new ResetInteractiveTestStub(
+            TestResetInteractive resetInteractive = new TestResetInteractive(
                 waitIndicator,
-                CreateReference,
+                CreateReplReferenceCommand,
                 CreateImport,
                 buildSucceeds: buildSucceeds)
             {
-                References = new List<string> { "r1", "r2" },
-                ReferenceSearchPaths = new List<string> { "rsp1", "rsp2" },
-                SourceSearchPaths = new List<string> { "ssp1", "ssp2" },
-                NamespacesToImport = new List<string> { "ns1", "ns2" },
+                References = ImmutableArray.CreateRange(GetProjectReferences(workspace, project)),
+                ReferenceSearchPaths = ImmutableArray.Create("rsp1", "rsp2"),
+                SourceSearchPaths = ImmutableArray.Create("ssp1", "ssp2"),
+                NamespacesToImport = ImmutableArray.Create("ns1", "ns2"),
                 ProjectDirectory = "pj",
             };
 
@@ -68,14 +85,31 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.Interactive.Commands
             testHost.Evaluator.OnExecute -= ExecuteSubmission;
         }
 
-        private string CreateReference(string referenceName)
+        /// <summary>
+        /// Simulates getting all project references.
+        /// </summary>
+        /// <param name="workspace">Workspace with the solution.</param>
+        /// <param name="project">A project that should be built.</param>
+        /// <returns>A list of paths that should be referenced.</returns>
+        private IEnumerable<string> GetProjectReferences(TestWorkspace workspace, Project project)
         {
-            return $"r:{referenceName}";
+            var metadataReferences = project.MetadataReferences.Select(r => r.Display);
+            var projectReferences = project.ProjectReferences.SelectMany(p => GetProjectReferences(
+                workspace,
+                workspace.CurrentSolution.GetProject(p.ProjectId)));
+            var outputReference = new string[] { project.OutputFilePath };
+
+            return metadataReferences.Union(projectReferences).Concat(outputReference);
+        }
+
+        private string CreateReplReferenceCommand(string referenceName)
+        {
+            return $@"#r ""{referenceName}""";
         }
 
         private string CreateImport(string importName)
         {
-            return $"i:{importName}";
+            return $@"using ""{importName}"";";
         }
     }
 }

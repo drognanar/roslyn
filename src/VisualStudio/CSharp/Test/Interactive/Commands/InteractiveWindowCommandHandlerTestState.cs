@@ -38,7 +38,7 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.Interactive.Commands
         {
             TestHost = new InteractiveWindowTestHost();
 
-            _commandHandler = new InteractiveCommandHandlerTestStub(
+            _commandHandler = new TestInteractiveCommandHandler(
                 TestHost.Window,
                 GetExportedValue<IContentTypeRegistryService>(),
                 GetExportedValue<IEditorOptionsFactoryService>(),

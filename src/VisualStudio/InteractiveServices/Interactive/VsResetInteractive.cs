@@ -15,6 +15,7 @@ using Microsoft.VisualStudio.ComponentModelHost;
 using Microsoft.VisualStudio.Shell.Interop;
 using VSLangProj;
 using Project = EnvDTE.Project;
+using System.Collections.Immutable;
 
 namespace Microsoft.VisualStudio.LanguageServices.Interactive
 {
@@ -38,18 +39,18 @@ namespace Microsoft.VisualStudio.LanguageServices.Interactive
         /// Gets the properties of the currently selected projects necessary for reset.
         /// </summary>
         protected override bool GetProjectProperties(
-            out List<string> references,
-            out List<string> referenceSearchPaths,
-            out List<string> sourceSearchPaths,
-            out List<string> namespacesToImport,
+            out ImmutableArray<string> references,
+            out ImmutableArray<string> referenceSearchPaths,
+            out ImmutableArray<string> sourceSearchPaths,
+            out ImmutableArray<string> namespacesToImport,
             out string projectDirectory)
         {
             var hierarchyPointer = default(IntPtr);
             var selectionContainerPointer = default(IntPtr);
-            references = null;
-            referenceSearchPaths = null;
-            sourceSearchPaths = null;
-            namespacesToImport = null;
+            references = ImmutableArray<string>.Empty;
+            referenceSearchPaths = ImmutableArray<string>.Empty;
+            sourceSearchPaths = ImmutableArray<string>.Empty;
+            namespacesToImport = ImmutableArray<string>.Empty;
             projectDirectory = null;
 
             try
@@ -76,10 +77,10 @@ namespace Microsoft.VisualStudio.LanguageServices.Interactive
 
         private static void GetProjectProperties(
             IntPtr hierarchyPointer,
-            out List<string> references,
-            out List<string> referenceSearchPaths,
-            out List<string> sourceSearchPaths,
-            out List<string> namespacesToImport,
+            out ImmutableArray<string> references,
+            out ImmutableArray<string> referenceSearchPaths,
+            out ImmutableArray<string> sourceSearchPaths,
+            out ImmutableArray<string> namespacesToImport,
             out string projectDirectory)
         {
             var hierarchy = (IVsHierarchy)Marshal.GetObjectForIUnknown(hierarchyPointer);
@@ -91,10 +92,10 @@ namespace Microsoft.VisualStudio.LanguageServices.Interactive
             var project = (Project)extensibilityObject;
             var vsProject = (VSProject)project.Object;
 
-            references = new List<string>();
-            referenceSearchPaths = new List<string>();
-            sourceSearchPaths = new List<string>();
-            namespacesToImport = new List<string>();
+            var referencesBuilder = ImmutableArray.CreateBuilder<string>();
+            var referenceSearchPathsBuilder = ImmutableArray.CreateBuilder<string>();
+            var sourceSearchPathsBuilder = ImmutableArray.CreateBuilder<string>();
+            var namespacesToImportBuilder = ImmutableArray.CreateBuilder<string>();
 
             var projectDir = (string)project.Properties.Item("FullPath").Value;
             var outputFileName = (string)project.Properties.Item("OutputFileName").Value;
@@ -131,6 +132,11 @@ namespace Microsoft.VisualStudio.LanguageServices.Interactive
             {
                 namespacesToImport.Add(defaultNamespace);
             }
+
+            references = referencesBuilder.ToImmutableArray();
+            referenceSearchPaths = referenceSearchPathsBuilder.ToImmutableArray();
+            sourceSearchPaths = sourceSearchPathsBuilder.ToImmutableArray();
+            namespacesToImport = namespacesToImportBuilder.ToImmutableArray();
         }
 
         private static string GetReferenceString(Reference reference)
