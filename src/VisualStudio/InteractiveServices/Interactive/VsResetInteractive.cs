@@ -111,26 +111,26 @@ namespace Microsoft.VisualStudio.LanguageServices.Interactive
 
             projectDirectory = projectDir;
 
-            referenceSearchPaths.Add(outputDir);
-            referenceSearchPaths.Add(RuntimeEnvironment.GetRuntimeDirectory());
+            referenceSearchPathsBuilder.Add(outputDir);
+            referenceSearchPathsBuilder.Add(RuntimeEnvironment.GetRuntimeDirectory());
 
             foreach (Reference reference in vsProject.References)
             {
                 var str = GetReferenceString(reference);
                 if (str != null)
                 {
-                    references.Add(str);
+                    referencesBuilder.Add(str);
                 }
             }
 
-            references.Add(outputFileName);
+            referencesBuilder.Add(outputFileName);
 
             // TODO (tomat): project Scripts dir
-            sourceSearchPaths.Add(Directory.Exists(scriptsDir) ? scriptsDir : projectDir);
+            sourceSearchPathsBuilder.Add(Directory.Exists(scriptsDir) ? scriptsDir : projectDir);
 
             if (!string.IsNullOrEmpty(defaultNamespace))
             {
-                namespacesToImport.Add(defaultNamespace);
+                namespacesToImportBuilder.Add(defaultNamespace);
             }
 
             references = referencesBuilder.ToImmutableArray();
