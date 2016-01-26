@@ -12,11 +12,6 @@ using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using Roslyn.Utilities;
 
-#if INTERACTIVE
-using InteractiveCommandIds = Microsoft.VisualStudio.LanguageServices.InteractiveWindow.CommandIds;
-using InteractiveGuids = Microsoft.VisualStudio.LanguageServices.InteractiveWindow.Guids;
-#endif
-
 namespace Microsoft.VisualStudio.LanguageServices.Implementation
 {
     internal abstract partial class AbstractOleCommandTarget
@@ -42,12 +37,10 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation
             {
                 return QueryVisualStudio97Status(ref pguidCmdGroup, commandCount, prgCmds, commandText);
             }
-#if INTERACTIVE
-            else if (pguidCmdGroup == InteractiveGuids.InteractiveCommandSetId)
+            else if (pguidCmdGroup == Guids.InteractiveCommandSetId)
             {
                 return QueryInteractiveCommandStatus(ref pguidCmdGroup, commandCount, prgCmds, commandText);
             }
-#endif
             else if (pguidCmdGroup == VSConstants.VsStd14)
             {
                 return QueryVisualStudio2014Status(ref pguidCmdGroup, commandCount, prgCmds, commandText);
@@ -231,22 +224,20 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation
             }
         }
 
-#if INTERACTIVE
         private int QueryInteractiveCommandStatus(ref Guid pguidCmdGroup, uint commandCount, OLECMD[] prgCmds, IntPtr commandText)
         {
-            switch ((InteractiveCommandIds)prgCmds[0].cmdID)
+            switch ((ID.InteractiveCommands)prgCmds[0].cmdID)
             {
-                case InteractiveCommandIds.ExecuteInInteractiveWindow:
+                case ID.InteractiveCommands.ExecuteInInteractiveWindow:
                     return QueryExecuteInInteractiveWindowStatus(ref pguidCmdGroup, commandCount, prgCmds, commandText);
 
-                case InteractiveCommandIds.CopyToInteractiveWindow:
+                case ID.InteractiveCommands.CopyToInteractiveWindow:
                     return QueryCopyToInteractiveWindowStatus(ref pguidCmdGroup, commandCount, prgCmds, commandText);
 
                 default:
                     return NextCommandTarget.QueryStatus(ref pguidCmdGroup, commandCount, prgCmds, commandText);
             }
         }
-#endif
 
         private int GetCommandState<T>(
             Func<ITextView, ITextBuffer, T> createArgs,
