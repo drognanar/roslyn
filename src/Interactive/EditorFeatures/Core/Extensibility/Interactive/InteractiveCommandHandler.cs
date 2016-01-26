@@ -6,11 +6,11 @@ using System.Diagnostics;
 using System.Linq;
 using Microsoft.CodeAnalysis.Editor.Commands;
 using Microsoft.CodeAnalysis.Editor.Shared.Extensions;
+using Microsoft.CodeAnalysis.Text;
 using Microsoft.VisualStudio.InteractiveWindow;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Text.Editor.OptionsExtensionMethods;
-using Microsoft.VisualStudio.Text.Formatting;
 using Microsoft.VisualStudio.Text.Operations;
 using Microsoft.VisualStudio.Utilities;
 
@@ -40,7 +40,17 @@ namespace Microsoft.CodeAnalysis.Editor.Interactive
 
         private static IEnumerable<SnapshotSpan> GetSelectedSpans(CommandArgs args)
         {
-            return args.TextView.Selection.GetSnapshotSpansOnBuffer(args.SubjectBuffer).Where(ss => ss.Length > 0);
+            IEnumerable<SnapshotSpan> snapshots = args.TextView.Selection.GetSnapshotSpansOnBuffer(args.SubjectBuffer).Where(ss => ss.Length > 0);
+            if (snapshots.Count() == 0)
+            {
+                SnapshotPoint? caret = args.TextView.GetCaretPoint(args.SubjectBuffer);
+                var containingLine = caret.Value.GetContainingLine();
+                snapshots = new SnapshotSpan[] {
+                    new SnapshotSpan(containingLine.Start, containingLine.End)
+                };
+            }
+
+            return snapshots;
         }
 
         private string GetSelectedText(CommandArgs args)
@@ -59,6 +69,9 @@ namespace Microsoft.CodeAnalysis.Editor.Interactive
 
         void ICommandHandler<ExecuteInInteractiveCommandArgs>.ExecuteCommand(ExecuteInInteractiveCommandArgs args, Action nextHandler)
         {
+            // TODO: Make async GetSelectedText
+            // It should 
+            Document doc = args.SubjectBuffer.GetRelatedDocuments().FirstOrDefault();
             var window = OpenInteractiveWindow(focus: false);
             window.SubmitAsync(new[] { GetSelectedText(args) });
         }
