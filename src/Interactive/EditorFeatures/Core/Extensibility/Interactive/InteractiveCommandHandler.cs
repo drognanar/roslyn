@@ -38,18 +38,30 @@ namespace Microsoft.CodeAnalysis.Editor.Interactive
 
         protected abstract IInteractiveWindow OpenInteractiveWindow(bool focus);
 
+        /// <summary>
+        /// Returns spans selected to send to interactive.
+        /// </summary>
+        /// <returns>If the selection is non empty returns the selected spans.
+        /// Otherwise returns the currently selected line.</returns>
         private static IEnumerable<SnapshotSpan> GetSelectedSpans(CommandArgs args)
         {
-            IEnumerable<SnapshotSpan> snapshots = args.TextView.Selection.GetSnapshotSpansOnBuffer(args.SubjectBuffer).Where(ss => ss.Length > 0);
-            if (snapshots.Count() == 0)
-            {
-                SnapshotPoint? caret = args.TextView.GetCaretPoint(args.SubjectBuffer);
-                var containingLine = caret.Value.GetContainingLine();
-                snapshots = new SnapshotSpan[] {
-                    new SnapshotSpan(containingLine.Start, containingLine.End)
-                };
-            }
+            // TODO: improve GetSelectedSpans to select an entire statement and not just a line.
+            // TODO: requires to walk an AST.
+            Document doc = args.SubjectBuffer.GetRelatedDocuments().FirstOrDefault();
+            IEnumerable<SnapshotSpan> selectedSpans = args.TextView.Selection.GetSnapshotSpansOnBuffer(args.SubjectBuffer).Where(ss => ss.Length > 0);
+            return selectedSpans.Any()
+                ? selectedSpans
+                : GetSnapshotSpanForCurrentLine(args);
+        }
 
+        private static IEnumerable<SnapshotSpan> GetSnapshotSpanForCurrentLine(CommandArgs args)
+        {
+            IEnumerable<SnapshotSpan> snapshots;
+            SnapshotPoint? caret = args.TextView.GetCaretPoint(args.SubjectBuffer);
+            var containingLine = caret.Value.GetContainingLine();
+            snapshots = new SnapshotSpan[] {
+                new SnapshotSpan(containingLine.Start, containingLine.End)
+            };
             return snapshots;
         }
 
@@ -64,21 +76,18 @@ namespace Microsoft.CodeAnalysis.Editor.Interactive
 
         CommandState ICommandHandler<ExecuteInInteractiveCommandArgs>.GetCommandState(ExecuteInInteractiveCommandArgs args, Func<CommandState> nextHandler)
         {
-            return GetSelectedSpans(args).Any() ? CommandState.Available : CommandState.Unavailable;
+            return CommandState.Available;
         }
 
         void ICommandHandler<ExecuteInInteractiveCommandArgs>.ExecuteCommand(ExecuteInInteractiveCommandArgs args, Action nextHandler)
         {
-            // TODO: Make async GetSelectedText
-            // It should 
-            Document doc = args.SubjectBuffer.GetRelatedDocuments().FirstOrDefault();
             var window = OpenInteractiveWindow(focus: false);
             window.SubmitAsync(new[] { GetSelectedText(args) });
         }
 
         CommandState ICommandHandler<CopyToInteractiveCommandArgs>.GetCommandState(CopyToInteractiveCommandArgs args, Func<CommandState> nextHandler)
         {
-            return GetSelectedSpans(args).Any() ? CommandState.Available : CommandState.Unavailable;
+            return CommandState.Available;
         }
 
         void ICommandHandler<CopyToInteractiveCommandArgs>.ExecuteCommand(CopyToInteractiveCommandArgs args, Action nextHandler)
