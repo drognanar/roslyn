@@ -20,11 +20,17 @@ Task.Run(() => { return 1; });";
 @"Console.WriteLine(
     ""InteractiveCommandHandlerExample"");";
 
-
         [WpfFact]
         [Trait(Traits.Feature, Traits.Features.Interactive)]
         public void TestExecuteInInteractiveWithoutSelection()
         {
+            AssertExecuteInInteractive(
+@"namespace N {
+    void foo() {
+        Console.WriteLine(
+            $$""LLL""); Console.WriteLine(""12"";
+    }
+}", "");
             AssertExecuteInInteractive(Caret, new string[0]);
             AssertExecuteInInteractive(ExampleCode1 + Caret, ExampleCode1);
             AssertExecuteInInteractive(ExampleCode1.Insert(3, Caret), ExampleCode1);
@@ -75,11 +81,11 @@ int y;");
             AssertCopyToInteractive(Caret, "");
             AssertCopyToInteractive($"{ExampleCode2}$$", ExampleCode2Line2);
             AssertCopyToInteractive(
-                code: $"{ExampleCode2}$$",
+                code: ExampleCode2 + Caret,
                 submissionBuffer: ExampleCode1,
                 expectedBufferText: ExampleCode1 + "\r\n" + ExampleCode2Line2);
             AssertCopyToInteractive(
-                code: $"{ExampleCode2}$$",
+                code: ExampleCode2 + Caret,
                 submissionBuffer: "x = 2;",
                 expectedBufferText: "x = 2;\r\n" + ExampleCode2Line2);
         }

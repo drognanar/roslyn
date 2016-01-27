@@ -6,13 +6,17 @@ using System.Diagnostics;
 using System.Linq;
 using Microsoft.CodeAnalysis.Editor.Commands;
 using Microsoft.CodeAnalysis.Editor.Shared.Extensions;
-using Microsoft.CodeAnalysis.Text;
 using Microsoft.VisualStudio.InteractiveWindow;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Text.Editor.OptionsExtensionMethods;
 using Microsoft.VisualStudio.Text.Operations;
 using Microsoft.VisualStudio.Utilities;
+using Microsoft.CodeAnalysis.Text;
+using System.Threading;
+using Roslyn.Utilities;
+using Microsoft.CodeAnalysis.Editor.Host;
+using System.Threading.Tasks;
 
 namespace Microsoft.CodeAnalysis.Editor.Interactive
 {
@@ -23,15 +27,18 @@ namespace Microsoft.CodeAnalysis.Editor.Interactive
         private readonly IContentTypeRegistryService _contentTypeRegistryService;
         private readonly IEditorOptionsFactoryService _editorOptionsFactoryService;
         private readonly IEditorOperationsFactoryService _editorOperationsFactoryService;
+        private readonly IWaitIndicator _waitIndicator;
 
         protected InteractiveCommandHandler(
             IContentTypeRegistryService contentTypeRegistryService,
             IEditorOptionsFactoryService editorOptionsFactoryService,
-            IEditorOperationsFactoryService editorOperationsFactoryService)
+            IEditorOperationsFactoryService editorOperationsFactoryService,
+            IWaitIndicator waitIndicator)
         {
             _contentTypeRegistryService = contentTypeRegistryService;
             _editorOptionsFactoryService = editorOptionsFactoryService;
             _editorOperationsFactoryService = editorOperationsFactoryService;
+            _waitIndicator = waitIndicator;
         }
 
         protected IContentTypeRegistryService ContentTypeRegistryService { get { return _contentTypeRegistryService; } }
@@ -43,26 +50,51 @@ namespace Microsoft.CodeAnalysis.Editor.Interactive
         /// </summary>
         /// <returns>If the selection is non empty returns the selected spans.
         /// Otherwise returns the currently selected line.</returns>
-        private static IEnumerable<SnapshotSpan> GetSelectedSpans(CommandArgs args)
+        private IEnumerable<SnapshotSpan> GetSelectedSpans(CommandArgs args)
         {
-            // TODO: improve GetSelectedSpans to select an entire statement and not just a line.
-            // TODO: requires to walk an AST.
-            Document doc = args.SubjectBuffer.GetRelatedDocuments().FirstOrDefault();
             IEnumerable<SnapshotSpan> selectedSpans = args.TextView.Selection.GetSnapshotSpansOnBuffer(args.SubjectBuffer).Where(ss => ss.Length > 0);
             return selectedSpans.Any()
                 ? selectedSpans
                 : GetSnapshotSpanForCurrentLine(args);
         }
 
-        private static IEnumerable<SnapshotSpan> GetSnapshotSpanForCurrentLine(CommandArgs args)
+        protected abstract SyntaxNode GetSelectedNode(CommandArgs args);
+
+        private async Task<IEnumerable<SyntaxNode>> GetMyNode(CommandArgs args, ITextSnapshotLine containingLine, CancellationToken cancellationToken)
         {
-            IEnumerable<SnapshotSpan> snapshots;
+            Document doc = args.SubjectBuffer.GetRelatedDocuments().FirstOrDefault();
+            int caretPosition = args.TextView.Caret.Position.BufferPosition.Position;
+            var semanticDocument = await SemanticDocument.CreateAsync(doc, cancellationToken).ConfigureAwait(false);
+            var text = semanticDocument.Text;
+            var root = semanticDocument.Root;
+            var model = semanticDocument.SemanticModel;
+
+
+            SyntaxTree tree = await doc.GetSyntaxTreeAsync(cancellationToken).ConfigureAwait(false);
+            return tree.GetRoot(cancellationToken).ChildNodes()
+                .Where(n => n.Span.OverlapsWith(TextSpan.FromBounds(containingLine.Start.Position, containingLine.End.Position)));
+        }
+
+        private async Task<IEnumerable<SnapshotSpan>> GetSnapshotSpanForCurrentLineAsync()
+        {
+            return null;
+        }
+
+        private IEnumerable<SnapshotSpan> GetSnapshotSpanForCurrentLine(CommandArgs args)
+        {
             SnapshotPoint? caret = args.TextView.GetCaretPoint(args.SubjectBuffer);
-            var containingLine = caret.Value.GetContainingLine();
-            snapshots = new SnapshotSpan[] {
+            ITextSnapshotLine containingLine = caret.Value.GetContainingLine();
+            var cancellationToken = CancellationToken.None;
+            IEnumerable<SyntaxNode> node = GetMyNode(args, containingLine, cancellationToken).WaitAndGetResult(cancellationToken);
+            
+            if (node.Any())
+            {
+                return node.Select(n => new SnapshotSpan(containingLine.Snapshot, n.SpanStart, n.Span.Length));
+            }
+
+            return new SnapshotSpan[] {
                 new SnapshotSpan(containingLine.Start, containingLine.End)
             };
-            return snapshots;
         }
 
         private string GetSelectedText(CommandArgs args)

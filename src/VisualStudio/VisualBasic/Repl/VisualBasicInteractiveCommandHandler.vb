@@ -1,7 +1,9 @@
 ' Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
 Imports System.ComponentModel.Composition
+Imports Microsoft.CodeAnalysis
 Imports Microsoft.CodeAnalysis.Editor
+Imports Microsoft.CodeAnalysis.Editor.Host
 Imports Microsoft.CodeAnalysis.Editor.Interactive
 Imports Microsoft.VisualStudio.InteractiveWindow
 Imports Microsoft.VisualStudio.Text.Editor
@@ -21,11 +23,16 @@ Namespace Microsoft.VisualStudio.LanguageServices.VisualBasic.Interactive
             interactiveWindowProvider As VisualBasicVsInteractiveWindowProvider,
             contentTypeRegistryService As IContentTypeRegistryService,
             editorOptionsFactoryService As IEditorOptionsFactoryService,
-            editorOperationsFactoryService As IEditorOperationsFactoryService)
+            editorOperationsFactoryService As IEditorOperationsFactoryService,
+            waitIndicator As IWaitIndicator)
 
-            MyBase.New(contentTypeRegistryService, editorOptionsFactoryService, editorOperationsFactoryService)
+            MyBase.New(contentTypeRegistryService, editorOptionsFactoryService, editorOperationsFactoryService, waitIndicator)
             _interactiveWindowProvider = interactiveWindowProvider
         End Sub
+
+        Protected Overrides Function GetSelectedNode(args As CommandArgs) As SyntaxNode
+            Return Nothing
+        End Function
 
         Protected Overrides Function OpenInteractiveWindow(focus As Boolean) As IInteractiveWindow
             Return _interactiveWindowProvider.Open(instanceId:=0, focus:=focus).InteractiveWindow

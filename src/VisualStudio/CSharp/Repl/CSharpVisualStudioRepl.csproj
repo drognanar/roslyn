@@ -27,6 +27,14 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'">
   </PropertyGroup>
   <ItemGroup Label="Project References">
+    <ProjectReference Include="..\..\..\Compilers\Core\Portable\CodeAnalysis.csproj">
+      <Project>{1EE8CAD3-55F9-4D91-96B2-084641DA9A6C}</Project>
+      <Name>CodeAnalysis</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\EditorFeatures\Text\TextEditorFeatures.csproj">
+      <Project>{18f5fbb8-7570-4412-8cc7-0a86ff13b7ba}</Project>
+      <Name>TextEditorFeatures</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\..\Workspaces\Core\Portable\Workspaces.csproj">
       <Project>{5f8d2414-064a-4b3a-9b42-8e2a04246be5}</Project>
       <Name>Workspaces</Name>
@@ -54,6 +62,10 @@
     <ProjectReference Include="..\..\..\VisualStudio\Core\Def\ServicesVisualStudio.csproj">
       <Project>{86fd5b9a-4fa0-4b10-b59f-cfaf077a859c}</Project>
       <Name>ServicesVisualStudio</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\Workspaces\CSharp\Portable\CSharpWorkspace.csproj">
+      <Project>{21b239d0-d144-430f-a394-c066d58ee267}</Project>
+      <Name>CSharpWorkspace</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\InteractiveServices\VisualStudioInteractiveServices.csproj">
       <Project>{a31228bb-f05c-4d4a-b98a-0e681d876b7c}</Project>
