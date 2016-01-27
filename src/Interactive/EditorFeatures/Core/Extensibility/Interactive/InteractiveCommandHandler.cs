@@ -45,65 +45,80 @@ namespace Microsoft.CodeAnalysis.Editor.Interactive
 
         protected abstract IInteractiveWindow OpenInteractiveWindow(bool focus);
 
-        /// <summary>
-        /// Returns spans selected to send to interactive.
-        /// </summary>
-        /// <returns>If the selection is non empty returns the selected spans.
-        /// Otherwise returns the currently selected line.</returns>
-        private IEnumerable<SnapshotSpan> GetSelectedSpans(CommandArgs args)
-        {
-            IEnumerable<SnapshotSpan> selectedSpans = args.TextView.Selection.GetSnapshotSpansOnBuffer(args.SubjectBuffer).Where(ss => ss.Length > 0);
-            return selectedSpans.Any()
-                ? selectedSpans
-                : GetSnapshotSpanForCurrentLine(args);
-        }
+        protected abstract IEnumerable<TextSpan> GetExecutableSyntaxTreeNodeSelection(TextSpan position, SourceText source, SyntaxNode node, SemanticModel model);
 
-        protected abstract SyntaxNode GetSelectedNode(CommandArgs args);
+        /// <summary>Returns whether the submission can be parsed in interactive.</summary>
+        protected abstract bool CanParseSubmission(string code);
 
-        private async Task<IEnumerable<SyntaxNode>> GetMyNode(CommandArgs args, ITextSnapshotLine containingLine, CancellationToken cancellationToken)
-        {
-            Document doc = args.SubjectBuffer.GetRelatedDocuments().FirstOrDefault();
-            int caretPosition = args.TextView.Caret.Position.BufferPosition.Position;
-            var semanticDocument = await SemanticDocument.CreateAsync(doc, cancellationToken).ConfigureAwait(false);
-            var text = semanticDocument.Text;
-            var root = semanticDocument.Root;
-            var model = semanticDocument.SemanticModel;
-
-
-            SyntaxTree tree = await doc.GetSyntaxTreeAsync(cancellationToken).ConfigureAwait(false);
-            return tree.GetRoot(cancellationToken).ChildNodes()
-                .Where(n => n.Span.OverlapsWith(TextSpan.FromBounds(containingLine.Start.Position, containingLine.End.Position)));
-        }
-
-        private async Task<IEnumerable<SnapshotSpan>> GetSnapshotSpanForCurrentLineAsync()
-        {
-            return null;
-        }
-
-        private IEnumerable<SnapshotSpan> GetSnapshotSpanForCurrentLine(CommandArgs args)
+        /// <summary>Returns the span for the currently selected line.</summary>
+        private static IEnumerable<SnapshotSpan> GetSelectedLine(CommandArgs args)
         {
             SnapshotPoint? caret = args.TextView.GetCaretPoint(args.SubjectBuffer);
+            int caretPosition = args.TextView.Caret.Position.BufferPosition.Position;
             ITextSnapshotLine containingLine = caret.Value.GetContainingLine();
-            var cancellationToken = CancellationToken.None;
-            IEnumerable<SyntaxNode> node = GetMyNode(args, containingLine, cancellationToken).WaitAndGetResult(cancellationToken);
-            
-            if (node.Any())
-            {
-                return node.Select(n => new SnapshotSpan(containingLine.Snapshot, n.SpanStart, n.Span.Length));
-            }
-
             return new SnapshotSpan[] {
                 new SnapshotSpan(containingLine.Start, containingLine.End)
             };
         }
 
-        private string GetSelectedText(CommandArgs args)
+        private async Task<IEnumerable<SnapshotSpan>> GetExecutableSyntaxTreeNodeSelection(
+            TextSpan selectionSpan,
+            CommandArgs args,
+            ITextSnapshot snapshot,
+            CancellationToken cancellationToken)
+        {
+            Document doc = args.SubjectBuffer.GetRelatedDocuments().FirstOrDefault();
+            var semanticDocument = await SemanticDocument.CreateAsync(doc, cancellationToken).ConfigureAwait(false);
+            var text = semanticDocument.Text;
+            var root = semanticDocument.Root;
+            var model = semanticDocument.SemanticModel;
+
+            return GetExecutableSyntaxTreeNodeSelection(selectionSpan, text, root, model)
+                .Select(span => new SnapshotSpan(snapshot, span.Start, span.Length));
+        }
+
+        private IEnumerable<SnapshotSpan> ExpandSelection(IEnumerable<SnapshotSpan> selectedSpans, CommandArgs args, CancellationToken cancellationToken)
+        {
+            var selectedSpansStart = selectedSpans.Min(span => span.Start);
+            var selectedSpansEnd = selectedSpans.Max(span => span.End);
+            ITextSnapshot snapshot = args.TextView.TextSnapshot;
+
+            IEnumerable<SnapshotSpan> newSpans = GetExecutableSyntaxTreeNodeSelection(
+                TextSpan.FromBounds(selectedSpansStart, selectedSpansEnd),
+                args,
+                snapshot,
+                cancellationToken).WaitAndGetResult(cancellationToken);
+
+            return newSpans.Any()
+                ? newSpans.Select(n => new SnapshotSpan(snapshot, n.Span.Start, n.Span.Length))
+                : selectedSpans;
+        }
+
+        private string GetSelectedText(CommandArgs args, CancellationToken cancellationToken)
         {
             var editorOptions = _editorOptionsFactoryService.GetOptions(args.SubjectBuffer);
+            IEnumerable<SnapshotSpan> selectedSpans = args.TextView.Selection.GetSnapshotSpansOnBuffer(args.SubjectBuffer).Where(ss => ss.Length > 0);
 
-            // If we have multiple selections, that's probably a box-selection scenario.
-            // So let's join the text together with newlines
-            return string.Join(editorOptions.GetNewLineCharacter(), GetSelectedSpans(args).Select(ss => ss.GetText()));
+            // If there is no selection select the current line.
+            if (!selectedSpans.Any())
+            {
+                selectedSpans = GetSelectedLine(args);
+            }
+
+            // Send the selection as is if it does not contain any parsing errors.
+            var candidateSubmission = GetSubmissionFromSelectedSpans(editorOptions, selectedSpans);
+            if (CanParseSubmission(candidateSubmission))
+            {
+                return candidateSubmission;
+            }
+
+            // Otherwise heuristically try to expand it.
+            return GetSubmissionFromSelectedSpans(editorOptions, ExpandSelection(selectedSpans, args, cancellationToken));
+        }
+
+        private static string GetSubmissionFromSelectedSpans(IEditorOptions editorOptions, IEnumerable<SnapshotSpan> selectedSpans)
+        {
+            return string.Join(editorOptions.GetNewLineCharacter(), selectedSpans.Select(ss => ss.GetText()));
         }
 
         CommandState ICommandHandler<ExecuteInInteractiveCommandArgs>.GetCommandState(ExecuteInInteractiveCommandArgs args, Func<CommandState> nextHandler)
@@ -114,7 +129,10 @@ namespace Microsoft.CodeAnalysis.Editor.Interactive
         void ICommandHandler<ExecuteInInteractiveCommandArgs>.ExecuteCommand(ExecuteInInteractiveCommandArgs args, Action nextHandler)
         {
             var window = OpenInteractiveWindow(focus: false);
-            window.SubmitAsync(new[] { GetSelectedText(args) });
+            _waitIndicator.Wait("execute executein interactive", true, (context) =>
+            {
+                window.SubmitAsync(new[] { GetSelectedText(args, context.CancellationToken) });
+            });
         }
 
         CommandState ICommandHandler<CopyToInteractiveCommandArgs>.GetCommandState(CopyToInteractiveCommandArgs args, Func<CommandState> nextHandler)
@@ -151,19 +169,21 @@ namespace Microsoft.CodeAnalysis.Editor.Interactive
 
             using (var edit = buffer.CreateEdit())
             {
-                var text = GetSelectedText(args);
+                _waitIndicator.Wait("execute copy to window", true, (context) => {
+                    var text = GetSelectedText(args, context.CancellationToken);
 
-                // If the last line isn't empty in the existing submission buffer, we will prepend a
-                // newline
-                var lastLine = buffer.CurrentSnapshot.GetLineFromLineNumber(buffer.CurrentSnapshot.LineCount - 1);
-                if (lastLine.Extent.Length > 0)
-                {
-                    var editorOptions = _editorOptionsFactoryService.GetOptions(args.SubjectBuffer);
-                    text = editorOptions.GetNewLineCharacter() + text;
-                }
+                    // If the last line isn't empty in the existing submission buffer, we will prepend a
+                    // newline
+                    var lastLine = buffer.CurrentSnapshot.GetLineFromLineNumber(buffer.CurrentSnapshot.LineCount - 1);
+                    if (lastLine.Extent.Length > 0)
+                    {
+                        var editorOptions = _editorOptionsFactoryService.GetOptions(args.SubjectBuffer);
+                        text = editorOptions.GetNewLineCharacter() + text;
+                    }
 
-                edit.Insert(buffer.CurrentSnapshot.Length, text);
-                edit.Apply();
+                    edit.Insert(buffer.CurrentSnapshot.Length, text);
+                    edit.Apply();
+                });
             }
 
             // Move the caret to the end

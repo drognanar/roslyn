@@ -5,6 +5,7 @@ Imports Microsoft.CodeAnalysis
 Imports Microsoft.CodeAnalysis.Editor
 Imports Microsoft.CodeAnalysis.Editor.Host
 Imports Microsoft.CodeAnalysis.Editor.Interactive
+Imports Microsoft.CodeAnalysis.Text
 Imports Microsoft.VisualStudio.InteractiveWindow
 Imports Microsoft.VisualStudio.Text.Editor
 Imports Microsoft.VisualStudio.Text.Operations
@@ -30,7 +31,12 @@ Namespace Microsoft.VisualStudio.LanguageServices.VisualBasic.Interactive
             _interactiveWindowProvider = interactiveWindowProvider
         End Sub
 
-        Protected Overrides Function GetSelectedNode(args As CommandArgs) As SyntaxNode
+        Protected Overrides Function CanParseSubmission(code As String) As Boolean
+            ' Return True to send the direct selection.
+            Return True
+        End Function
+
+        Protected Overrides Function GetExecutableSyntaxTreeNodeSelection(position As TextSpan, source As SourceText, node As SyntaxNode, model As SemanticModel) As IEnumerable(Of TextSpan)
             Return Nothing
         End Function
 

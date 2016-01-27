@@ -7,8 +7,7 @@ using Microsoft.VisualStudio.InteractiveWindow;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Text.Operations;
 using Microsoft.VisualStudio.Utilities;
-using Roslyn.Utilities;
-using System.Threading;
+using System.Collections.Generic;
 
 namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.Interactive.Commands
 {
@@ -27,7 +26,12 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.Interactive.Commands
             _interactiveWindow = interactiveWindow;
         }
 
-        protected override SyntaxNode GetSelectedNode(CommandArgs args)
+        protected override bool CanParseSubmission(string code)
+        {
+            return true;
+        }
+
+        protected override IEnumerable<TextSpan> GetExecutableSyntaxTreeNodeSelection(TextSpan position, SourceText source, SyntaxNode node, SemanticModel model)
         {
             return null;
         }
