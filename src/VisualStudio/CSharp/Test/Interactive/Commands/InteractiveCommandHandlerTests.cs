@@ -20,21 +20,26 @@ Task.Run(() => { return 1; });";
 @"Console.WriteLine(
     ""InteractiveCommandHandlerExample"");";
 
+        private const string ExampleMultiline =
+@"namespace N {
+    void foo() {
+        Console.WriteLine(
+            $$""LLL"");
+    }
+}";
+        private const string ExpectedMultilineSelection =
+@"Console.WriteLine(
+            ""LLL"");";
+
         [WpfFact]
         [Trait(Traits.Feature, Traits.Features.Interactive)]
         public void TestExecuteInInteractiveWithoutSelection()
         {
-            AssertExecuteInInteractive(
-@"namespace N {
-    void foo() {
-        Console.WriteLine(
-            $$""LLL""); Console.WriteLine(""12"";
-    }
-}", "");
             AssertExecuteInInteractive(Caret, new string[0]);
             AssertExecuteInInteractive(ExampleCode1 + Caret, ExampleCode1);
             AssertExecuteInInteractive(ExampleCode1.Insert(3, Caret), ExampleCode1);
             AssertExecuteInInteractive(ExampleCode2 + Caret, ExampleCode2Line2);
+            AssertExecuteInInteractive(ExampleMultiline, ExpectedMultilineSelection);
         }
 
         [WpfFact]
