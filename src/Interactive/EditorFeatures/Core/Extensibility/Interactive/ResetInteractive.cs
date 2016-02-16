@@ -11,6 +11,7 @@ using System.Collections.Immutable;
 using Microsoft.CodeAnalysis.Editor;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Text.Editor.OptionsExtensionMethods;
+using Microsoft.CodeAnalysis.Text;
 
 namespace Microsoft.VisualStudio.LanguageServices.Interactive
 {
@@ -113,11 +114,19 @@ namespace Microsoft.VisualStudio.LanguageServices.Interactive
 
             var editorOptions = _editorOptionsFactoryService.GetOptions(interactiveWindow.CurrentLanguageBuffer);
             var importReferencesCommand = referencePaths.Select(_createReference);
-            var importNamespacesCommand = namespacesToImport.Select(_createImport).Join(editorOptions.GetNewLineCharacter());
-            await interactiveWindow.SubmitAsync(importReferencesCommand.Concat(new[]
+            await interactiveWindow.SubmitAsync(importReferencesCommand).ConfigureAwait(true);
+
+            // Filter out namespace imports that do not exist in the compilation.
+            // Needed when project's default namespace is different from namespace used within project.
+            var document = interactiveWindow.CurrentLanguageBuffer.CurrentSnapshot.GetOpenDocumentInCurrentContextWithChanges();
+            var compilation = await document.Project.GetCompilationAsync().ConfigureAwait(true);
+            var namespaces = compilation.GlobalNamespace.GetNamespaceMembers().Select((ns) => ns.Name).ToSet();
+            var importNamespacesCommand = namespacesToImport.Where((ns) => namespaces.Contains(ns)).Select(_createImport).Join(editorOptions.GetNewLineCharacter());
+
+            if (!string.IsNullOrWhiteSpace(importNamespacesCommand))
             {
-                importNamespacesCommand
-            })).ConfigureAwait(true);
+                await interactiveWindow.SubmitAsync(new[] { importNamespacesCommand }).ConfigureAwait(true);
+            }
         }
 
         /// <summary>
