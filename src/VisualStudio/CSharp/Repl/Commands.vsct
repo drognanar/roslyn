@@ -29,7 +29,7 @@
         <CommandFlag>DynamicVisibility</CommandFlag>
         <CommandFlag>DefaultInvisible</CommandFlag>
         <Strings>
-          <ButtonText>Reset C# Interactive from Project</ButtonText>
+          <ButtonText>Initialize Interactive with Project</ButtonText>
           <CanonicalName>ResetC#InteractiveFromProject</CanonicalName>
           <LocCanonicalName>ResetC#InteractiveFromProject</LocCanonicalName>
         </Strings>
