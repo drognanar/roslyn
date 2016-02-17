@@ -8,17 +8,17 @@ using Microsoft.VisualStudio.InteractiveWindow;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Text.Editor.OptionsExtensionMethods;
-using Microsoft.VisualStudio.Text.Formatting;
 using Microsoft.VisualStudio.Text.Operations;
 using Microsoft.VisualStudio.Utilities;
 using System.Threading;
 using Microsoft.CodeAnalysis.Editor.Host;
+using Microsoft.CodeAnalysis.Editor.CommandHandlers;
 
 namespace Microsoft.CodeAnalysis.Editor.Interactive
 {
     internal abstract class InteractiveCommandHandler :
-        ICommandHandler<ExecuteInInteractiveCommandArgs>,
-        ICommandHandler<CopyToInteractiveCommandArgs>
+        ICommandHandler<CopyToInteractiveCommandArgs>,
+        IExecuteInInteractiveCommandHandler
     {
         private readonly IContentTypeRegistryService _contentTypeRegistryService;
         private readonly IEditorOptionsFactoryService _editorOptionsFactoryService;
@@ -51,7 +51,7 @@ namespace Microsoft.CodeAnalysis.Editor.Interactive
 
         CommandState ICommandHandler<ExecuteInInteractiveCommandArgs>.GetCommandState(ExecuteInInteractiveCommandArgs args, Func<CommandState> nextHandler)
         {
-            return CommandState.Available;
+            return nextHandler();
         }
 
         void ICommandHandler<ExecuteInInteractiveCommandArgs>.ExecuteCommand(ExecuteInInteractiveCommandArgs args, Action nextHandler)

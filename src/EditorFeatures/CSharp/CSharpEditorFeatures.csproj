@@ -147,6 +147,8 @@
     <Compile Include="Highlighting\KeywordHighlighters\YieldStatementHighlighter.cs" />
     <Compile Include="HighlightReferences\CSharpDocumentHighlightsService.cs" />
     <Compile Include="InlineRename\CSharpEditorInlineRenameService.cs" />
+    <Compile Include="Interactive\CSharpLazyExecuteInInteractiveCommandHandler.cs" />
+    <Compile Include="Interactive\IExecuteInInteractiveCommandHandler.cs" />
     <Compile Include="LanguageServices\CSharpContentTypeLanguageService.cs" />
     <Compile Include="LineSeparators\CSharpLineSeparatorService.cs" />
     <Compile Include="NavigateTo\CSharpNavigateToSearchService.cs" />

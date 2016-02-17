@@ -119,7 +119,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Interactive
             // Filter out namespace imports that do not exist in the compilation.
             // Needed when project's default namespace is different from namespace used within project.
             var document = interactiveWindow.CurrentLanguageBuffer.CurrentSnapshot.GetOpenDocumentInCurrentContextWithChanges();
-            var compilation = await document.Project.GetCompilationAsync().ConfigureAwait(true);
+            var compilation = await document.Project.GetCompilationAsync(waitContext.CancellationToken).ConfigureAwait(true);
             var namespaces = compilation.GlobalNamespace.GetNamespaceMembers().Select((ns) => ns.Name).ToSet();
             var importNamespacesCommand = namespacesToImport.Where((ns) => namespaces.Contains(ns)).Select(_createImport).Join(editorOptions.GetNewLineCharacter());
 
