@@ -5,6 +5,9 @@ using System.Linq;
 using Microsoft.CodeAnalysis.Editor.Options;
 using Microsoft.CodeAnalysis.Options;
 using Microsoft.VisualStudio.LanguageServices;
+using Microsoft.CodeAnalysis;
+using RoslynProject = Microsoft.CodeAnalysis.Project;
+using RoslynWorkspace = Microsoft.CodeAnalysis.Workspace;
 
 namespace Roslyn.VisualStudio.Test.Utilities.Remoting
 {
@@ -50,6 +53,30 @@ namespace Roslyn.VisualStudio.Test.Utilities.Remoting
             {
                 _workspace.Options = value;
             }
+        }
+        
+        public void AddReference(string projectName, string referenceAssemblyPath)
+        {
+            var metadataReference = MetadataReference.CreateFromFile(referenceAssemblyPath);
+            RoslynProject newProject = GetProject(projectName).AddMetadataReference(metadataReference);
+
+            if (!_workspace.TryApplyChanges(newProject.Solution))
+            {
+                throw new Exception($"Reference {referenceAssemblyPath} was not added to {projectName}");
+            }
+        }
+
+        public void OpenDocument(string projectName, string documentName)
+        {
+            RoslynProject project = GetProject(projectName);
+            DocumentId documentId = project.Documents.Single(doc => doc.Name.Equals(documentName)).Id;
+
+            RemotingHelper.InvokeOnUIThread(() => _workspace.OpenDocument(documentId, activate: true));
+        }
+
+        private RoslynProject GetProject(string projectName)
+        {
+            return _workspace.CurrentSolution.Projects.Single(p => p.Name == projectName);
         }
     }
 }

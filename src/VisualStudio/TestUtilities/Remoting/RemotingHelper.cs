@@ -151,13 +151,13 @@ namespace Roslyn.VisualStudio.Test.Utilities.Remoting
 
         public static void WaitForSystemIdle() => CurrentApplicationDispatcher.Invoke(() => { }, DispatcherPriority.SystemIdle);
 
+        public static void InvokeOnUIThread(Action action) => CurrentApplicationDispatcher.Invoke(action);
+
+        public static T InvokeOnUIThread<T>(Func<T> action) => CurrentApplicationDispatcher.Invoke(action);
+
         public static void WaitForApplicationIdle() => CurrentApplicationDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
 
         private static T GetGlobalService<T>(Type serviceType) => InvokeOnUIThread(() => (T)(GlobalServiceProvider.GetService(serviceType)));
-
-        private static void InvokeOnUIThread(Action action) => CurrentApplicationDispatcher.Invoke(action);
-
-        private static T InvokeOnUIThread<T>(Func<T> action) => CurrentApplicationDispatcher.Invoke(action);
 
         private static void LoadRoslynPackage()
         {
