@@ -78,6 +78,8 @@ namespace Microsoft.VisualStudio.LanguageServices.Setup
 
             InitializeColors();
 
+            LoadInteractiveMenus();
+
             // load some services that have to be loaded in UI thread
             LoadComponentsInUIContextOnceSolutionFullyLoaded();
 
@@ -144,7 +146,6 @@ namespace Microsoft.VisualStudio.LanguageServices.Setup
             // Perf: Initialize the command handlers.
             var commandHandlerServiceFactory = this.ComponentModel.GetService<ICommandHandlerServiceFactory>();
             commandHandlerServiceFactory.Initialize(ContentTypeNames.RoslynContentType);
-            LoadInteractiveMenus();
 
             this.ComponentModel.GetService<MiscellaneousTodoListTable>();
             this.ComponentModel.GetService<MiscellaneousDiagnosticListTable>();
