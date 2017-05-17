@@ -23,6 +23,7 @@ namespace Microsoft.VisualStudio.IntegrationTest.Utilities.InProcess
 
         private static readonly IDictionary<string, string> _csharpProjectTemplates = InitializeCSharpProjectTemplates();
         private static readonly IDictionary<string, string> _visualBasicProjectTemplates = InitializeVisualBasicProjectTemplates();
+        private static readonly IDictionary<string, string> _typescriptProjectTemplates = InitializeTypescriptTemplates();
 
         private SolutionExplorer_InProc() { }
 
@@ -56,6 +57,14 @@ namespace Microsoft.VisualStudio.IntegrationTest.Utilities.InProcess
                 [WellKnownProjectTemplates.WinFormsApplication] = "WindowsApplication.zip",
                 [WellKnownProjectTemplates.WpfApplication] = "WpfApplication.zip",
                 [WellKnownProjectTemplates.WebApplication] = "WebApplicationProject40"
+            };
+        }
+
+        private static IDictionary<string, string> InitializeTypescriptTemplates()
+        {
+            return new Dictionary<string, string>
+            {
+                [WellKnownProjectTemplates.TypescriptNodeConsoleApp] = "TypeScriptConsoleApp.zip"
             };
         }
 
@@ -239,6 +248,7 @@ namespace Microsoft.VisualStudio.IntegrationTest.Utilities.InProcess
         {
             const string CSharp = nameof(CSharp);
             const string VisualBasic = nameof(VisualBasic);
+            const string TypeScript = nameof(TypeScript);
 
             switch (languageName)
             {
@@ -246,6 +256,8 @@ namespace Microsoft.VisualStudio.IntegrationTest.Utilities.InProcess
                     return CSharp;
                 case LanguageNames.VisualBasic:
                     return VisualBasic;
+                case TypeScript:
+                    return TypeScript;
                 default:
                     throw new ArgumentException($"{languageName} is not supported.", nameof(languageName));
             }
@@ -273,6 +285,12 @@ namespace Microsoft.VisualStudio.IntegrationTest.Utilities.InProcess
                _visualBasicProjectTemplates.TryGetValue(projectTemplate, out var visualBasicProjectTemplate))
             {
                 return _solution.GetProjectTemplate(visualBasicProjectTemplate, languageName);
+            }
+
+            if (languageName.Equals("typescript", StringComparison.OrdinalIgnoreCase) &&
+                _typescriptProjectTemplates.TryGetValue(projectTemplate, out var typescriptProjectTemplate))
+            {
+                return _solution.GetProjectTemplate(typescriptProjectTemplate, languageName);
             }
 
             return _solution.GetProjectTemplate(projectTemplate, languageName);
