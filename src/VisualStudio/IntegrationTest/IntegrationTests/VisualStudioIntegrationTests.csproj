@@ -64,6 +64,7 @@
     <Compile Include="CSharp\CSharpSquigglesNetCore.cs" />
     <Compile Include="CSharp\CSharpWinForms.cs" />
     <Compile Include="CSharp\CSharpAddMissingReference.cs" />
+    <Compile Include="Typescript\AbstractTypescriptIntegrationTest.cs" />
     <Compile Include="Typescript\TypescriptCompletionTest.cs" />
     <Compile Include="Typescript\TypescriptFormattingTest.cs" />
     <Compile Include="Typescript\TypescriptSignatureHelperTest.cs" />
